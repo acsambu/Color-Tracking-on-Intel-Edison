@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="initial-scale=1"/>
+  <title>Color Tracker</title>
+
+  <script src="js/tracking-min.js"></script>
+  <script src="js/color_camera_gui.js"></script>
+  
+
+  <style type="text/css">
+    .container {
+      margin-top: 5%;
+      text-align: center;
+    }
+    #canvas {
+      width: 640px;
+      height: 480px;
+      border: 1px solid #ccc;
+    }
+    
+        
+  </style>
+</head>
+<body>
+  
+
+  <div class="container">    
+  <div > 
+  <button id ="button-tracker-on" onclick="startTracker()"> Start Tracking</button>
+  <button id ="button-tracker-off" onclick="stopTracker()"> Stop Tracking</button>
+  </div>
+    <canvas id="canvas" width="640" height="480" ></canvas>
+
+  </div>
+
+  <script src="/jsmpg.js"></script>
+  <script type="text/javascript">
+
+    
+      // Change to the appropriate WebSocket address
+    var wsUrl = 'ws://192.168.3.34:8084/';
+    // Display loading notice
+   // var button = document.getElementById('button-tracker')
+    var canvas = document.getElementById('canvas');
+    var ctx = canvas.getContext('2d');
+    var demoContainer = document.querySelector('.container');
+
+    ctx.fillStyle = '#333';
+    ctx.fillText('Loading...', canvas.width/2-30, canvas.height/3);
+
+    //register your own color
+    tracking.ColorTracker.registerColor('green', function(r, g, b) {
+        var dx = r - 109;
+        var dy = g - 226;
+        var dz = b - 41;
+
+        if ((b - g) >= 100 && (r - g) >= 60) {
+          return true;
+        }
+        return dx * dx + dy * dy + dz * dz < 3500;
+      });
+
+    //instantiate the constructor passing the colors
+    var tracker = new tracking.ColorTracker(['green']);
+    tracker.setMinDimension(5);
+
+
+    // Start the player
+    var client = new WebSocket(wsUrl);
+    var player = new jsmpeg(client, { canvas:canvas });
+
+    tracking.track('#canvas', tracker, { camera: true });
+
+    var trackerTask = tracking.track('#canvas', tracker, { camera: true });
+
+    tracker.on('track', function(event) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+          event.data.forEach(function(rect) {
+            
+
+            if (rect.color === 'custom') {
+              rect.color = tracker.customColor;
+            }
+
+            // Load lcd module on I2C
+            var LCD = require('jsupm_i2clcd');
+
+            // Initialize Jhd1313m1 at 0x62 (RGB_ADDRESS) and 0x3E (LCD_ADDRESS) 
+            var myLcd = new LCD.Jhd1313m1 (0, 0x3E, 0x62);
+
+    
+
+            myLcd.setCursor(0,0);
+            // RGB Green
+            myLcd.setColor(109, 226, 41);
+            myLcd.write('Hello Green!');  
+            
+            ctx.strokeStyle = rect.color;
+            ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+            ctx.font = '11px Helvetica';
+            ctx.fillStyle = "#fff";
+            ctx.fillText('x: ' + rect.x + 'px', rect.x + rect.width + 5, rect.y + 11);
+            ctx.fillText('y: ' + rect.y + 'px', rect.x + rect.width + 5, rect.y + 22);
+          });
+      });
+    initGUIControllers(tracker);
+    
+    
+
+    function startTracker() {
+      
+        //trackerTask.run(); 
+        tracking.track('#canvas', tracker);
+        tracker.on('track', function(event) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+          event.data.forEach(function(rect) {
+            
+
+            if (rect.color === 'custom') {
+              rect.color = tracker.customColor;
+            }
+
+            myLcd.setCursor(0,0);
+            // RGB Green
+            myLcd.setColor(109, 226, 41);
+            myLcd.write('Hello Green!');  
+            
+            ctx.strokeStyle = rect.color;
+            ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+            ctx.font = '11px Helvetica';
+            ctx.fillStyle = "#fff";
+            ctx.fillText('x: ' + rect.x + 'px', rect.x + rect.width + 5, rect.y + 11);
+            ctx.fillText('y: ' + rect.y + 'px', rect.x + rect.width + 5, rect.y + 22);
+          });
+      });
+    initGUIControllers(tracker);
+    
+    }
+
+
+    function stopTracker() {
+        trackerTask.stop(); 
+    }
+  
+  </script>
+
+</body>
+</html>
